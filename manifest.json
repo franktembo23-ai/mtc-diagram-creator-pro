@@ -1,0 +1,17 @@
+{
+  "name": "MTC Diagram Creator Pro",
+  "short_name": "MTC Diagrams",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#081236",
+  "theme_color": "#0a1f5c",
+  "description": "Mountain Tuition Centre - Diagram Creator Pro",
+  "icons": [
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
