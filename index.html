@@ -875,7 +875,7 @@ select option { background: #ffffff; color: #1a2744; }
 </div>
   <div id="cloud-status-bar" style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:9px;margin-bottom:14px;background:rgba(8,18,54,0.5);border:1px solid rgba(201,162,39,0.2);">
     <span id="cloud-status-dot" style="width:13px;height:13px;border-radius:50%;background:#555;flex-shrink:0;display:inline-block;"></span>
-    <span id="cloud-status-text" style="font-size:0.85rem;color:#8899cc;">Connecting to MTC Firebase (mtc-exams)...</span>
+    <span id="cloud-status-text" style="font-size:0.85rem;color:#8899cc;">Connecting to MTC Realtime Database (FREE)...</span>
     <button class="btn btn-navy btn-xs" style="margin-left:auto;" onclick="cloudTestConnection()">&#9654; Test</button>
   </div>
 
@@ -4594,7 +4594,8 @@ var MTC_FB_CONFIG = {
   storageBucket:     'mtc-exams.firebasestorage.app',
   messagingSenderId: '301948043220',
   appId:             '1:301948043220:web:29494d7d52a283775f2041',
-  measurementId:     'G-8P2QFJZ00F'
+  measurementId:     'G-8P2QFJZ00F',
+  databaseURL:       'https://mtc-exams-default-rtdb.europe-west1.firebasedatabase.app'
 };
 var cloudDB        = null;   // Firestore instance
 var cloudFBApp     = null;   // Firebase app instance
@@ -4690,7 +4691,7 @@ function cloudInitFirebase(cfg) {
     s.src = 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js';
     s.onload = function() {
       var s2 = document.createElement('script');
-      s2.src = 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js';
+      s2.src = 'https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js';
       s2.onload = function() { cloudConnect(cfg); };
       document.head.appendChild(s2);
     };
@@ -4714,12 +4715,14 @@ function cloudConnect(cfg) {
       var existing = firebase.apps.find(function(a){ return a.name === 'mtc'; });
       if (existing) existing.delete();
     } catch(e) {}
+    // Add databaseURL if missing
+    if (!cfg.databaseURL) cfg.databaseURL = 'https://mtc-exams-default-rtdb.europe-west1.firebasedatabase.app';
     cloudFBApp = firebase.initializeApp(cfg, 'mtc');
-    cloudDB    = cloudFBApp.firestore();
-    cloudSetStatus(true, 'Connected to Firebase: ' + cfg.projectId);
+    cloudDB    = cloudFBApp.database();
+    cloudSetStatus(true, 'Connected — Realtime Database (FREE) ✔');
     liveLoadPublishedExams();
     liveRefresh();
-    showToast('Firebase connected!');
+    showToast('Firebase Realtime Database connected!');
   } catch(e) {
     cloudSetStatus(false, 'Connection error: ' + e.message);
   }
@@ -4727,8 +4730,8 @@ function cloudConnect(cfg) {
 
 function cloudTestConnection() {
   if (!cloudDB) { showToast('Not connected — save config first!'); return; }
-  cloudDB.collection('mtc_ping').doc('test').set({ t: Date.now() })
-    .then(function() { showToast('Firebase connection OK!'); cloudSetStatus(true, 'Connected ✔'); })
+  cloudDB.ref('mtc_ping').set({ t: Date.now() })
+    .then(function() { showToast('Realtime Database connection OK! ✔'); cloudSetStatus(true, 'Connected ✔ — FREE Realtime Database'); })
     .catch(function(e) { showToast('Error: ' + e.message); });
 }
 
@@ -4779,7 +4782,7 @@ function cloudPublishExam() {
   document.getElementById('cloud-publish-btn').textContent = 'Publishing...';
   document.getElementById('cloud-publish-btn').disabled = true;
 
-  cloudDB.collection('mtc_exams').doc(code).set(examDoc)
+  cloudDB.ref('mtc_exams/' + code).set(examDoc)
     .then(function() {
       var url = CLOUD_APP_URL + '?exam=' + code;
       var shareEl = document.getElementById('cloud-share-url');
@@ -4814,7 +4817,7 @@ function cloudPublishExam() {
 
 function cloudUnpublishExam() {
   if (!cloudDB || !cloudActiveCode) return;
-  cloudDB.collection('mtc_exams').doc(cloudActiveCode).update({ active: false })
+  cloudDB.ref('mtc_exams/' + cloudActiveCode + '/active').set(false)
     .then(function() {
       showToast('Exam unpublished');
       var sharePanel = document.getElementById('cloud-share-panel');
@@ -4921,19 +4924,29 @@ var liveResultsCache = [];
 
 function liveRefresh() {
   if (!cloudDB) return;
-  if (liveUnsub) { try { liveUnsub(); } catch(e) {} }
+  // Detach previous listener
+  if (liveUnsub) { try { cloudDB.ref('mtc_results').off('value', liveUnsub); } catch(e) {} liveUnsub = null; }
   var indicator = document.getElementById('live-indicator');
   if (indicator) indicator.style.display = 'flex';
-
   var filterCode = (document.getElementById('live-exam-filter') || {}).value || '';
-  var query = cloudDB.collection('mtc_results').orderBy('submittedAt', 'desc').limit(200);
-  if (filterCode) query = query.where('examCode', '==', filterCode);
 
-  liveUnsub = query.onSnapshot(function(snap) {
+  liveUnsub = function(snap) {
     liveResultsCache = [];
-    snap.forEach(function(doc) { liveResultsCache.push(doc.data()); });
+    if (snap.val()) {
+      var data = snap.val();
+      var keys = Object.keys(data);
+      for (var ki = 0; ki < keys.length; ki++) {
+        var rec = data[keys[ki]];
+        if (!filterCode || rec.examCode === filterCode) {
+          liveResultsCache.push(rec);
+        }
+      }
+      // Sort newest first
+      liveResultsCache.sort(function(a,b){ return (b.submittedAt||'') > (a.submittedAt||'') ? 1 : -1; });
+    }
     renderLiveResults();
-  }, function(err) {
+  };
+  cloudDB.ref('mtc_results').on('value', liveUnsub, function(err) {
     var tableEl = document.getElementById('live-results-table');
     if (tableEl) tableEl.innerHTML = '<div style="color:#e74c3c;padding:12px;">Error: ' + err.message + '</div>';
   });
@@ -5033,21 +5046,23 @@ function exportLiveCSV() {
 // ── Load published exams list ─────────────────────────────────
 function liveLoadPublishedExams() {
   if (!cloudDB) return;
-  cloudDB.collection('mtc_exams').where('publishedBy','>=','').get()
+  cloudDB.ref('mtc_exams').once('value')
     .then(function(snap) {
       var listEl = document.getElementById('cloud-exams-list');
       var filterEl = document.getElementById('live-exam-filter');
       if (!listEl) return;
 
-      if (snap.empty) {
+      if (!snap.val()) {
         listEl.innerHTML = '<div style="text-align:center;color:#5566a0;padding:20px;font-size:0.88rem;">No online exams yet.</div>';
         return;
       }
 
       var html = '';
       var filterOpts = '<option value="">All Published Exams</option>';
-      snap.forEach(function(doc) {
-        var d = doc.data();
+      var examsObj = snap.val();
+      var examKeys = Object.keys(examsObj);
+      examKeys.forEach(function(key) {
+        var d = examsObj[key];
         var url = CLOUD_APP_URL + '?exam=' + d.code;
         var active = d.active !== false;
         html += '<div class="exam-list-item">';
@@ -5065,7 +5080,7 @@ function liveLoadPublishedExams() {
       });
       listEl.innerHTML = html;
       if (filterEl) filterEl.innerHTML = filterOpts;
-    });
+    }).catch(function(e){ console.log('loadPublished error:', e.message); });
 }
 
 function cloudDeleteExam(code) {
@@ -5073,7 +5088,7 @@ function cloudDeleteExam(code) {
   openModal('Delete Online Exam',
     '<p style="color:#d4e0ff;">Permanently delete exam <strong style="color:var(--gold);">' + code + '</strong> from the cloud?<br><span style="font-size:0.83rem;color:#8899cc;">This will also remove student access. Results are kept.</span></p>',
     function() {
-      cloudDB.collection('mtc_exams').doc(code).delete()
+      cloudDB.ref('mtc_exams/' + code).remove()
         .then(function() { closeModal(); liveLoadPublishedExams(); showToast('Exam deleted from cloud'); });
     }, 'Delete');
 }
@@ -5123,7 +5138,7 @@ function cloudCheckAndLoadStudentExam(code, loadDiv) {
     s1.src = 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js';
     s1.onload = function() {
       var s2 = document.createElement('script');
-      s2.src = 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js';
+      s2.src = 'https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js';
       s2.onload = function() { cloudFetchAndLaunchExam(cfg, code, loadDiv); };
       document.head.appendChild(s2);
     };
@@ -5136,14 +5151,17 @@ function cloudCheckAndLoadStudentExam(code, loadDiv) {
 function cloudFetchAndLaunchExam(cfg, code, loadDiv) {
   try {
     var app = firebase.apps.find(function(a){ return a.name==='mtc-student'; });
-    if (!app) app = firebase.initializeApp(cfg, 'mtc-student');
-    var db = app.firestore();
-    db.collection('mtc_exams').doc(code).get().then(function(doc) {
-      if (!doc.exists) {
+    if (!app) {
+      if (!cfg.databaseURL) cfg.databaseURL = 'https://mtc-exams-default-rtdb.europe-west1.firebasedatabase.app';
+      app = firebase.initializeApp(cfg, 'mtc-student');
+    }
+    var db = app.database();
+    db.ref('mtc_exams/' + code).once('value').then(function(snap) {
+      if (!snap.val()) {
         loadDiv.innerHTML = '<div style="color:#e74c3c;text-align:center;"><div style="font-size:2rem;">&#9888;</div><div>Exam <strong>' + code + '</strong> not found.<br><small>Check the link or ask your teacher.</small></div></div>';
         return;
       }
-      var examData = doc.data();
+      var examData = snap.val();
       if (!examData.active) {
         loadDiv.innerHTML = '<div style="color:#e0b030;text-align:center;"><div style="font-size:2rem;">&#9940;</div><div>This exam is no longer active.<br><small>Ask your teacher for the correct link.</small></div></div>';
         return;
@@ -5335,8 +5353,10 @@ function cloudLaunchStudentExam(examData, db, loadDiv) {
     };
 
     // Save to Firestore
-    db.collection('mtc_results').add(result)
-      .then(function(docRef){ result.id = docRef.id; showOnlineResult(result, gc, ge, score, max, right, total); })
+    var newResultRef = db.ref('mtc_results').push();
+    result.id = newResultRef.key;
+    newResultRef.set(result)
+      .then(function(){ showOnlineResult(result, gc, ge, score, max, right, total); })
       .catch(function(){ showOnlineResult(result, gc, ge, score, max, right, total); });
   }
 
