@@ -980,6 +980,7 @@ select option { background: #ffffff; color: #1a2744; }
       </select>
       <button class="btn btn-navy btn-xs" onclick="liveRefresh()">&#8635; Refresh</button>
       <button class="btn btn-navy btn-xs" onclick="exportLiveCSV()">&#128229; CSV</button>
+      <button class="btn btn-danger btn-xs" onclick="cloudClearAllResults()">&#128465; Clear All</button>
     </div>
   </div>
 
@@ -3650,8 +3651,8 @@ function renderPerfRecords() {
     html += '<td style="padding:7px 10px;text-align:center;">' + (r.score || 0) + '/' + (r.maxScore || 0) + '</td>';
     html += '<td style="padding:7px 10px;text-align:center;font-weight:800;color:var(--gold);">' + r.pct + '%</td>';
     html += '<td style="padding:7px 10px;text-align:center;font-weight:800;color:' + gc + ';">' + r.grade + '</td>';
-    html += '<td style="padding:7px 10px;color:#8899cc;font-size:0.76rem;">' + escHtml(r.time || '') + '</td>';
-    html += '<td style="padding:7px 10px;text-align:center;"><button class="btn btn-danger btn-xs" data-perf-del="' + r.id + '">&#128465;</button></td>';
+    html += '<td style="padding:7px 10px;color:#8899cc;font-size:0.76rem;">' + escHtml(r.submittedAt ? new Date(r.submittedAt).toLocaleString() : (r.time||'')) + '</td>';
+    html += '<td style="padding:7px 10px;text-align:center;"><button class="btn btn-danger btn-xs" data-cloud-del="' + (r.id||'') + '" title="Delete">&#128465;</button></td>';
     html += '</tr>';
   }
   html += '</tbody></table>';
@@ -5000,6 +5001,7 @@ function renderLiveResults() {
   html += '<th style="padding:8px 10px;text-align:center;">%</th>';
   html += '<th style="padding:8px 10px;text-align:center;">Grade</th>';
   html += '<th style="padding:8px 10px;text-align:left;">Submitted</th>';
+  html += '<th style="padding:8px 10px;text-align:center;">Del</th>';
   html += '</tr></thead><tbody>';
 
   for (var ri=0; ri<results.length; ri++) {
@@ -5017,7 +5019,68 @@ function renderLiveResults() {
     html += '</tr>';
   }
   html += '</tbody></table>';
-  if (tableEl) tableEl.innerHTML = html;
+  if (tableEl) {
+    tableEl.innerHTML = html;
+    // Delete button delegation
+    tableEl.onclick = function(ev) {
+      var btn = ev.target;
+      if (btn.tagName !== 'BUTTON') return;
+      var rid = btn.getAttribute('data-cloud-del');
+      if (rid !== null) cloudDeleteResult(rid);
+    };
+  }
+}
+
+function cloudDeleteResult(resultId) {
+  if (!cloudDB || !resultId) { showToast('Cannot delete — not connected'); return; }
+  openModal('Delete Result',
+    '<p style="color:#d4e0ff;">Delete this student result permanently?<br><span style="font-size:0.83rem;color:#8899cc;">This cannot be undone.</span></p>',
+    function() {
+      cloudDB.ref('mtc_results/' + resultId).remove()
+        .then(function() {
+          closeModal();
+          showToast('Result deleted');
+          // Remove from cache and re-render immediately
+          liveResultsCache = liveResultsCache.filter(function(r){ return r.id !== resultId; });
+          renderLiveResults();
+        })
+        .catch(function(e) { showToast('Error: ' + e.message); closeModal(); });
+    }, 'Delete');
+}
+
+function cloudClearAllResults() {
+  if (!cloudDB) { showToast('Not connected!'); return; }
+  var filterCode = (document.getElementById('live-exam-filter') || {}).value || '';
+  var msg = filterCode
+    ? 'Delete ALL results for exam "' + filterCode + '"?'
+    : 'Delete ALL student results from the database? This cannot be undone.';
+  openModal('Clear All Results',
+    '<p style="color:#d4e0ff;">' + msg + '</p><p style="color:#e74c3c;margin-top:8px;font-size:0.85rem;">&#9888; This permanently removes all results.</p>',
+    function() {
+      if (filterCode) {
+        // Delete only filtered results
+        var promises = [];
+        for (var i = 0; i < liveResultsCache.length; i++) {
+          if (liveResultsCache[i].id) {
+            promises.push(cloudDB.ref('mtc_results/' + liveResultsCache[i].id).remove());
+          }
+        }
+        Promise.all(promises).then(function() {
+          closeModal(); showToast('Results cleared for ' + filterCode);
+          liveResultsCache = [];
+          renderLiveResults();
+        }).catch(function(e){ showToast('Error: ' + e.message); closeModal(); });
+      } else {
+        // Delete ALL results
+        cloudDB.ref('mtc_results').remove()
+          .then(function() {
+            closeModal(); showToast('All results cleared!');
+            liveResultsCache = [];
+            renderLiveResults();
+          })
+          .catch(function(e){ showToast('Error: ' + e.message); closeModal(); });
+      }
+    }, 'Yes, Delete All');
 }
 
 function exportLiveCSV() {
