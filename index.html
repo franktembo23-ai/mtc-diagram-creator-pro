@@ -405,6 +405,8 @@ select option { background: #ffffff; color: #1a2744; }
           <option>Combined Science</option><option>Computer Studies</option>
           <option>Geography</option><option>History</option><option>Civic Education</option>
           <option>Social Studies</option><option>Technology Studies</option>
+          <option>Integrated Science</option><option>Expressive Arts</option>
+          <option>Home Economics</option>
           <option>Special Paper 1</option><option>Special Paper 2</option>
           <option>Cinyanja</option><option>Other</option>
         </select>
@@ -771,8 +773,29 @@ select option { background: #ffffff; color: #1a2744; }
   <!-- SCREEN 1: EXAM SELECTOR -->
   <div id="te-select-screen">
     <div class="card">
-      <div class="card-title">&#127891; Take Exam — Select an Exam</div>
-      <p style="color:#aab4d4;font-size:0.87rem;margin-bottom:14px;">Choose any exam from the bank below. Results will be recorded automatically.</p>
+      <div class="card-title">&#127891; Take Exam — Select Grade &amp; Subject</div>
+      <p style="color:#aab4d4;font-size:0.87rem;margin-bottom:14px;">Choose a Grade level below, then a Subject, to find exams. Results are recorded automatically and saved by Grade and Subject.</p>
+
+      <!-- Grade Level Buttons -->
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+        <button class="btn te-grade-btn" id="te-grade-btn-Grade 7"  data-grade="Grade 7"  onclick="teSelectGrade('Grade 7')"  style="background:var(--navy-light);color:#fff;border:1px solid rgba(201,162,39,0.3);padding:11px 18px;font-weight:700;">&#128214; Grade 7</button>
+        <button class="btn te-grade-btn" id="te-grade-btn-Grade 12" data-grade="Grade 12" onclick="teSelectGrade('Grade 12')" style="background:var(--navy-light);color:#fff;border:1px solid rgba(201,162,39,0.3);padding:11px 18px;font-weight:700;">&#127891; Grade 12</button>
+        <button class="btn te-grade-btn" id="te-grade-btn-GCE"      data-grade="GCE"      onclick="teSelectGrade('GCE')"      style="background:var(--navy-light);color:#fff;border:1px solid rgba(201,162,39,0.3);padding:11px 18px;font-weight:700;">&#128220; GCE</button>
+        <button class="btn btn-navy btn-sm" id="te-grade-reset-btn" onclick="teResetGradeFilter()" style="display:none;margin-left:auto;">&#10005; All Grades</button>
+      </div>
+
+      <!-- Subject dropdown for selected grade -->
+      <div id="te-grade-subject-row" style="display:none;margin-bottom:14px;">
+        <label>Subject <span id="te-grade-label" style="color:var(--gold);font-weight:700;"></span></label>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">
+          <select id="te-grade-subject-select" style="flex:1;min-width:200px;" onchange="teFilterByGradeSubject()">
+            <option value="">All Subjects for this Grade</option>
+          </select>
+          <button class="btn btn-danger btn-sm" onclick="teDeleteGradeAll()">&#128465; Delete All Exams — This Grade</button>
+          <button class="btn btn-danger btn-sm" id="te-delete-subj-btn" onclick="teDeleteSubjectInGrade()" style="display:none;">&#128465; Delete This Subject — This Grade</button>
+        </div>
+      </div>
+
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
         <input type="text" id="te-search" placeholder="&#128269; Search exams by title or subject..." style="flex:1;min-width:200px;" oninput="teFilterExams()">
         <select id="te-subj-filter" style="min-width:160px;" onchange="teFilterExams()">
@@ -1889,7 +1912,10 @@ function publishExam() {
   var qsJSON  = JSON.stringify(qs).replace(/<\//g, '<\\/');
   var sJSON   = JSON.stringify(s).replace(/<\//g, '<\\/');
 
-  var html = buildPublishedExam(s, qs, logoB64, qsJSON, sJSON);
+  // Get saved Gemini key for AI marking
+  var geminiKey = '';
+  try { geminiKey = localStorage.getItem('mtc_gemini_key') || ''; } catch(e) {}
+  var html = buildPublishedExam(s, qs, logoB64, qsJSON, sJSON, geminiKey);
 
   // Download
   var safeName = (s.title || 'MTC_Exam').replace(/[^a-zA-Z0-9_\-]/g, '_');
@@ -1961,7 +1987,7 @@ function deletePublished(idx) {
 // ============================================================
 // GENERATE PUBLISHED EXAM HTML
 // ============================================================
-function buildPublishedExam(s, qs, logoB64, qsJSON, sJSON) {
+function buildPublishedExam(s, qs, logoB64, qsJSON, sJSON, geminiKey) {
 
   var mcqN = 0, shortN = 0, essayN = 0;
   for (var qi = 0; qi < qs.length; qi++) {
@@ -2052,6 +2078,8 @@ function buildPublishedExam(s, qs, logoB64, qsJSON, sJSON) {
   css += '.img-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:pointer;}\n';
   css += '.img-overlay img{max-width:95vw;max-height:95vh;border-radius:8px;border:2px solid var(--gold);}\n';
   css += '@media(max-width:500px){.lcard{padding:20px 14px;}.rcard{padding:18px 14px;}}\n';
+  css += '.ai-marking-screen{min-height:50vh;display:flex;align-items:center;justify-content:center;padding:20px;}\n';
+  css += '.ai-badge{background:rgba(46,204,113,0.15);border:1px solid #2ecc71;border-radius:20px;padding:2px 10px;font-size:0.76rem;color:#2ecc71;font-weight:700;display:inline-block;}\n';
 
   // ── BODY HTML ────────────────────────────────────────────
   var body = '';
@@ -2094,7 +2122,8 @@ function buildPublishedExam(s, qs, logoB64, qsJSON, sJSON) {
   sc += '// MTC Published Exam — ES5 compatible\n';
   sc += 'var EXAM_QS = ' + qsJSON + ';\n';
   sc += 'var EXAM_S  = ' + sJSON  + ';\n';
-  sc += 'var LOGO    = "' + logoB64 + '";\n\n';
+  sc += 'var LOGO    = "' + logoB64 + '";\n';
+  sc += 'var AI_KEY  = "' + (geminiKey || '') + '";\n\n';
 
   sc += 'var timerInt    = null;\n';
   sc += 'var timeLeft    = 0;\n';
@@ -2102,7 +2131,9 @@ function buildPublishedExam(s, qs, logoB64, qsJSON, sJSON) {
   sc += 'var studentNum  = "";\n';
   sc += 'var answers     = {};\n';
   sc += 'var retakes     = 0;\n';
-  sc += 'var slips       = [];\n\n';
+  sc += 'var slips       = [];\n';
+  sc += 'var aiMarks     = {};\n';
+  sc += 'var aiFeedback  = {};\n\n';
 
   // escH helper (needed inside standalone exam)
   sc += 'function escH(str) {\n';
@@ -2255,27 +2286,76 @@ function buildPublishedExam(s, qs, logoB64, qsJSON, sJSON) {
   sc += '}\n\n';
 
   // submitExam
-  sc += 'function submitExam() {\n';
-  sc += '  if (timerInt) clearInterval(timerInt);\n';
-  sc += '  // Save any textarea answers\n';
-  sc += '  for (var qi = 0; qi < EXAM_QS.length; qi++) {\n';
-  sc += '    var q = EXAM_QS[qi];\n';
-  sc += '    if (q.type === "short" || q.type === "essay") {\n';
-  sc += '      var tel = getEl("sa-" + q.id);\n';
-  sc += '      if (tel) answers[q.id] = tel.value;\n';
-  sc += '    }\n';
+    // ── AI Marking function ───────────────────────────────────────────────────
+  sc += 'function aiMarkQuestion(q, studentAns, onDone) {\n';
+  sc += '  if (!AI_KEY || !studentAns || !studentAns.trim()) {\n';
+  sc += '    onDone({ score: 0, feedback: "No answer provided — 0 marks awarded." }); return;\n';
   sc += '  }\n';
-  sc += '  // Score MCQs\n';
-  sc += '  var mcqScore = 0, mcqMax = 0, mcqRight = 0, mcqTotal = 0;\n';
-  sc += '  for (var i = 0; i < EXAM_QS.length; i++) {\n';
-  sc += '    var q = EXAM_QS[i];\n';
-  sc += '    if (q.type === "mcq") {\n';
-  sc += '      mcqTotal++;\n';
-  sc += '      mcqMax += (q.marks || 1);\n';
-  sc += '      if (answers[q.id] === q.correct) { mcqScore += (q.marks || 1); mcqRight++; }\n';
-  sc += '    }\n';
+  sc += '  var modelAns = q.answer || q.guidance || "(No model answer set)";\n';
+  sc += '  var prompt = "You are an experienced ECZ Zambia exam marker at Mountain Tuition Centre.\\n\\n" +\n';
+  sc += '    "QUESTION: " + q.text + "\\n" +\n';
+  sc += '    "MODEL ANSWER / MARK SCHEME: " + modelAns + "\\n" +\n';
+  sc += '    "STUDENT ANSWER: " + studentAns + "\\n" +\n';
+  sc += '    "MAXIMUM MARKS: " + (q.marks || 1) + "\\n\\n" +\n';
+  sc += '    "Return ONLY valid JSON, no other text:\\n" +\n';
+  sc += '    "{\\"score\\": 2, \\"feedback\\": \\"Your feedback here.\\"}\\n\\n" +\n';
+  sc += '    "MARKING RULES:\\n" +\n';
+  sc += '    "- Award marks for correct facts even if worded differently\\n" +\n';
+  sc += '    "- Award partial marks fairly (e.g. 2/3 if 2 of 3 points correct)\\n" +\n';
+  sc += '    "- Blank or irrelevant answer = score 0\\n" +\n';
+  sc += '    "- Feedback: 1-2 sentences, constructive and encouraging\\n" +\n';
+  sc += '    "- score must be a whole number between 0 and " + (q.marks || 1);\n';
+  sc += '  fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + AI_KEY, {\n';
+  sc += '    method: "POST",\n';
+  sc += '    headers: { "Content-Type": "application/json" },\n';
+  sc += '    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.2, maxOutputTokens: 300 } })\n';
+  sc += '  }).then(function(r){ return r.json(); })\n';
+  sc += '    .then(function(d) {\n';
+  sc += '      if (d.candidates && d.candidates[0]) {\n';
+  sc += '        var text = d.candidates[0].content.parts[0].text.replace(/```json/gi,"").replace(/```/g,"").trim();\n';
+  sc += '        var si = text.indexOf("{"), ei = text.lastIndexOf("}");\n';
+  sc += '        if (si >= 0 && ei > si) {\n';
+  sc += '          try {\n';
+  sc += '            var res = JSON.parse(text.substring(si, ei+1));\n';
+  sc += '            var sc2 = Math.min(Math.max(0, parseInt(res.score) || 0), q.marks || 1);\n';
+  sc += '            onDone({ score: sc2, feedback: res.feedback || "Marked by AI." }); return;\n';
+  sc += '          } catch(ex) {}\n';
+  sc += '        }\n';
+  sc += '      }\n';
+  sc += '      onDone({ score: 0, feedback: "AI marking unavailable — teacher will review." });\n';
+  sc += '    }).catch(function() { onDone({ score: 0, feedback: "AI offline — teacher will review." }); });\n';
+  sc += '}\n\n';
+
+  // ── showAIMarkingScreen ───────────────────────────────────────────────────
+  sc += 'function showAIMarkingScreen(total) {\n';
+  sc += '  var eEl = getEl("exam-screen"), rEl = getEl("result-screen");\n';
+  sc += '  if (eEl) eEl.style.display = "none";\n';
+  sc += '  if (rEl) {\n';
+  sc += '    rEl.style.display = "block";\n';
+  sc += '    rEl.innerHTML = "<div style=\\"min-height:60vh;display:flex;align-items:center;justify-content:center;padding:20px;\\">" +\n';
+  sc += '      "<div style=\\"text-align:center;max-width:400px;\\">" +\n';
+  sc += '      "<div style=\\"font-size:3rem;margin-bottom:14px;\\">\\uD83E\\uDD16</div>" +\n';
+  sc += '      "<div style=\\"font-size:1.1rem;font-weight:800;color:var(--gold);margin-bottom:8px;\\">AI is Marking Your Answers...</div>" +\n';
+  sc += '      "<div style=\\"font-size:0.85rem;color:#aab4d4;margin-bottom:16px;\\">Gemini AI is reading your short answers and essays.<br>This takes a few seconds.</div>" +\n';
+  sc += '      "<div id=\\"ai-mark-bar\\" style=\\"height:10px;background:rgba(201,162,39,0.2);border-radius:5px;overflow:hidden;margin-bottom:8px;\\">" +\n';
+  sc += '      "<div id=\\"ai-mark-fill\\" style=\\"height:100%;background:var(--gold);border-radius:5px;width:0%;transition:width 0.5s;\\"></div></div>" +\n';
+  sc += '      "<div id=\\"ai-mark-lbl\\" style=\\"font-size:0.82rem;color:#8899cc;\\">0 of " + total + " questions marked</div>" +\n';
+  sc += '      "</div></div>";\n';
   sc += '  }\n';
-  sc += '  var pct = mcqMax > 0 ? Math.round((mcqScore / mcqMax) * 100) : 0;\n';
+  sc += '}\n\n';
+
+  // ── updateAIProgress ──────────────────────────────────────────────────────
+  sc += 'function updateAIProgress(done, total) {\n';
+  sc += '  var fill = getEl("ai-mark-fill"), lbl = getEl("ai-mark-lbl");\n';
+  sc += '  if (fill) fill.style.width = Math.round((done/total)*100) + "%";\n';
+  sc += '  if (lbl) lbl.textContent = done + " of " + total + " questions marked";\n';
+  sc += '}\n\n';
+
+  // ── showFinalResult ───────────────────────────────────────────────────────
+  sc += 'function showFinalResult(mcqScore, mcqMax, mcqRight, mcqTotal, aiScore, aiMax) {\n';
+  sc += '  var totalScore = mcqScore + aiScore;\n';
+  sc += '  var totalMax   = mcqMax + aiMax;\n';
+  sc += '  var pct = totalMax > 0 ? Math.round((totalScore / totalMax) * 100) : 0;\n';
   sc += '  var grds = EXAM_S.grades || { d:80, m:65, c:50, p:35 };\n';
   sc += '  var grade, gClass, gEmoji;\n';
   sc += '  if (pct >= (grds.d || 80))      { grade = "DISTINCTION"; gClass = "gD"; gEmoji = "\\u2B50"; }\n';
@@ -2283,14 +2363,57 @@ function buildPublishedExam(s, qs, logoB64, qsJSON, sJSON) {
   sc += '  else if (pct >= (grds.c || 50)) { grade = "CREDIT";      gClass = "gC"; gEmoji = "\\u2728"; }\n';
   sc += '  else if (pct >= (grds.p || 35)) { grade = "PASS";        gClass = "gP"; gEmoji = "\\u2705"; }\n';
   sc += '  else                            { grade = "FAIL";         gClass = "gF"; gEmoji = "\\u274C"; }\n';
-  sc += '  retakes++;\n';
-  sc += '  var slip = { name:studentName, num:studentNum, score:mcqScore, max:mcqMax, pct:pct, grade:grade, right:mcqRight, total:mcqTotal, time:new Date().toLocaleString(), attempt:retakes };\n';
+  sc += '  var slip = { name:studentName, num:studentNum, score:totalScore, max:totalMax,\n';
+  sc += '    mcqScore:mcqScore, mcqMax:mcqMax, aiScore:aiScore, aiMax:aiMax,\n';
+  sc += '    pct:pct, grade:grade, right:mcqRight, total:mcqTotal, time:new Date().toLocaleString(), attempt:retakes };\n';
   sc += '  slips.push(slip);\n';
-  sc += '  // Switch screens\n';
-  sc += '  var eEl = getEl("exam-screen"), rEl = getEl("result-screen");\n';
-  sc += '  if (eEl) eEl.style.display = "none";\n';
+  sc += '  var rEl = getEl("result-screen");\n';
   sc += '  if (rEl) { rEl.style.display = "block"; rEl.innerHTML = buildResult(slip, gClass, gEmoji); }\n';
   sc += '}\n\n';
+
+  // ── submitExam (new AI-aware version) ─────────────────────────────────────
+  sc += 'function submitExam() {\n';
+  sc += '  if (timerInt) clearInterval(timerInt);\n';
+  sc += '  for (var qi = 0; qi < EXAM_QS.length; qi++) {\n';
+  sc += '    var q = EXAM_QS[qi];\n';
+  sc += '    if (q.type === "short" || q.type === "essay") {\n';
+  sc += '      var tel = getEl("sa-" + q.id);\n';
+  sc += '      if (tel) answers[q.id] = tel.value;\n';
+  sc += '    }\n';
+  sc += '  }\n';
+  sc += '  var mcqScore = 0, mcqMax = 0, mcqRight = 0, mcqTotal = 0;\n';
+  sc += '  var longQs = [];\n';
+  sc += '  for (var i = 0; i < EXAM_QS.length; i++) {\n';
+  sc += '    var q = EXAM_QS[i];\n';
+  sc += '    if (q.type === "mcq") {\n';
+  sc += '      mcqTotal++; mcqMax += (q.marks || 1);\n';
+  sc += '      if (answers[q.id] === q.correct) { mcqScore += (q.marks || 1); mcqRight++; }\n';
+  sc += '    } else { longQs.push(q); }\n';
+  sc += '  }\n';
+  sc += '  retakes++;\n';
+  sc += '  aiMarks = {}; aiFeedback = {};\n';
+  sc += '  if (!longQs.length || !AI_KEY) {\n';
+  sc += '    showFinalResult(mcqScore, mcqMax, mcqRight, mcqTotal, 0, 0); return;\n';
+  sc += '  }\n';
+  sc += '  showAIMarkingScreen(longQs.length);\n';
+  sc += '  var aiScore = 0, aiMax = 0, done = 0;\n';
+  sc += '  for (var li = 0; li < longQs.length; li++) {\n';
+  sc += '    (function(q) {\n';
+  sc += '      aiMax += (q.marks || 1);\n';
+  sc += '      aiMarkQuestion(q, answers[q.id] || "", function(result) {\n';
+  sc += '        aiMarks[q.id]    = result.score;\n';
+  sc += '        aiFeedback[q.id] = result.feedback;\n';
+  sc += '        aiScore += result.score;\n';
+  sc += '        done++;\n';
+  sc += '        updateAIProgress(done, longQs.length);\n';
+  sc += '        if (done === longQs.length) {\n';
+  sc += '          showFinalResult(mcqScore, mcqMax, mcqRight, mcqTotal, aiScore, aiMax);\n';
+  sc += '        }\n';
+  sc += '      });\n';
+  sc += '    })(longQs[li]);\n';
+  sc += '  }\n';
+  sc += '}\n\n';
+
 
   // buildResult
   sc += 'function buildResult(slip, gClass, gEmoji) {\n';
@@ -2305,9 +2428,11 @@ function buildPublishedExam(s, qs, logoB64, qsJSON, sJSON) {
   sc += '  h += "<div class=\\"slip-tbl\\">";\n';
   sc += '  h += "<div class=\\"srow\\"><span>Student</span><span class=\\"sval\\">" + escH(slip.name) + "</span></div>";\n';
   sc += '  h += "<div class=\\"srow\\"><span>Exam Number</span><span class=\\"sval\\">" + escH(slip.num) + "</span></div>";\n';
-  sc += '  h += "<div class=\\"srow\\"><span>MCQ Score</span><span class=\\"sval\\">" + slip.score + " / " + slip.max + " marks</span></div>";\n';
+  sc += '  h += "<div class=\\"srow\\"><span>MCQ Score</span><span class=\\"sval\\">" + slip.mcqScore + " / " + (slip.mcqMax||0) + " marks</span></div>";\n';
   sc += '  h += "<div class=\\"srow\\"><span>Percentage</span><span class=\\"sval\\" style=\\"color:var(--gold);font-weight:800;\\">" + slip.pct + "%</span></div>";\n';
   sc += '  h += "<div class=\\"srow\\"><span>Grade</span><span class=\\"sval " + gClass + "\\">" + slip.grade + "</span></div>";\n';
+  sc += '  h += slip.aiMax > 0 ? "<div class=\\"srow\\"><span>&#129302; AI Marked</span><span class=\\"sval\\" style=\\"color:#81c784;font-weight:800;\\">" + (slip.aiScore||0) + " / " + slip.aiMax + " marks</span></div>" : "";\n';
+  sc += '  h += "<div class=\\"srow\\" style=\\"border-top:2px solid rgba(201,162,39,0.4);\\"><span style=\\"font-weight:700;\\">Total Score</span><span class=\\"sval\\" style=\\"color:var(--gold);font-size:1rem;font-weight:900;\\">" + slip.score + " / " + (slip.max||0) + " marks</span></div>";\n';
   sc += '  h += "<div class=\\"srow\\"><span>Correct Answers</span><span class=\\"sval\\">" + slip.right + " / " + slip.total + " MCQs</span></div>";\n';
   sc += '  h += "<div class=\\"srow\\"><span>Date &amp; Time</span><span class=\\"sval\\">" + escH(slip.time) + "</span></div>";\n';
   sc += '  h += "<div class=\\"srow\\"><span>Attempt</span><span class=\\"sval\\">#" + slip.attempt + "</span></div>";\n';
@@ -2351,10 +2476,19 @@ function buildPublishedExam(s, qs, logoB64, qsJSON, sJSON) {
   sc += '      if (!answers[q.id]) h += "<div style=\\"font-size:0.8rem;color:#e74c3c;margin-top:4px;\\">Not answered</div>";\n';
   sc += '    } else {\n';
   sc += '      var studentAns = answers[q.id] || "";\n';
+  sc += '      var qAISc = aiMarks[q.id]; var qAIFb = aiFeedback[q.id];\n';
   sc += '      h += "<div style=\\"font-size:0.83rem;color:#8899cc;margin-bottom:4px;\\">Your answer:</div>";\n';
-  sc += '      h += "<div style=\\"background:rgba(0,0,0,0.2);padding:6px 9px;border-radius:5px;font-size:0.83rem;\\">" + escH(studentAns || "(No answer given)") + "</div>";\n';
+  sc += '      h += "<div style=\\"background:rgba(0,0,0,0.2);padding:7px 10px;border-radius:6px;font-size:0.83rem;margin-bottom:7px;\\">" + escH(studentAns || "(No answer given)") + "</div>";\n';
+  sc += '      if (typeof qAISc !== "undefined") {\n';
+  sc += '        var aiClr = qAISc >= q.marks ? "#2ecc71" : qAISc > 0 ? "#f39c12" : "#e74c3c";\n';
+  sc += '        h += "<div style=\\"border:2px solid " + aiClr + ";border-radius:9px;padding:10px 13px;margin-bottom:7px;background:rgba(14,24,70,0.85);\\">"\n';
+  sc += '          + "<div style=\\"display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;\\">"\n';
+  sc += '          + "<span style=\\"font-size:0.8rem;font-weight:700;color:#e8c04a;\\">&#129302; AI Marking Result</span>"\n';
+  sc += '          + "<span style=\\"font-size:0.95rem;font-weight:900;color:" + aiClr + ";\\">" + qAISc + " / " + q.marks + " marks</span></div>"\n';
+  sc += '          + "<div style=\\"font-size:0.84rem;color:#d4e0ff;line-height:1.6;\\">" + escH(qAIFb || "") + "</div></div>";\n';
+  sc += '      }\n';
   sc += '      var modelAns = q.answer || q.guidance || "";\n';
-  sc += '      if (modelAns) h += "<div class=\\"ans-box\\"><strong>Model Answer:</strong> " + escH(modelAns) + "</div>";\n';
+  sc += '      if (modelAns) h += "<div class=\\"ans-box\\"><strong>Model Answer / Mark Scheme:</strong> " + escH(modelAns) + "</div>";\n';
   sc += '    }\n';
   sc += '    h += "</div>";\n';
   sc += '  }\n';
@@ -3009,6 +3143,15 @@ var teState = {
 
 var PERF_KEY = 'mtc_performance_records';
 
+// ── Grade-level subject lists (fixed, as defined by MTC curriculum) ─────────
+var TE_GRADE_SUBJECTS = {
+  'Grade 7': ['English','Mathematics','Integrated Science','Social Studies','Technology Studies','Expressive Arts','Home Economics','Special Paper 1','Special Paper 2','Cinyanja'],
+  'Grade 12': ['English','Mathematics','Biology','Chemistry','Physics'],
+  'GCE': ['English','Mathematics','Biology','Chemistry','Physics']
+};
+
+var teActiveGrade = '';   // '' = All Grades, else 'Grade 7' / 'Grade 12' / 'GCE'
+
 // ── Screen navigation ───────────────────────────────────────
 function teShowScreen(name) {
   var screens = ['te-select-screen','te-login-screen','te-exam-screen','te-result-screen'];
@@ -3026,12 +3169,149 @@ function teBackToSelect() {
   renderPerfRecords();
 }
 
+// ── Grade level selection ────────────────────────────────────
+function teSelectGrade(grade) {
+  teActiveGrade = grade;
+
+  // Highlight active grade button
+  var grades = ['Grade 7','Grade 12','GCE'];
+  for (var i = 0; i < grades.length; i++) {
+    var btn = document.getElementById('te-grade-btn-' + grades[i]);
+    if (btn) {
+      if (grades[i] === grade) {
+        btn.style.background = 'linear-gradient(135deg, var(--gold) 0%, var(--gold-dark) 100%)';
+        btn.style.color = 'var(--navy-dark)';
+        btn.style.borderColor = 'var(--gold)';
+      } else {
+        btn.style.background = 'var(--navy-light)';
+        btn.style.color = '#fff';
+        btn.style.borderColor = 'rgba(201,162,39,0.3)';
+      }
+    }
+  }
+
+  var resetBtn = document.getElementById('te-grade-reset-btn');
+  if (resetBtn) resetBtn.style.display = 'inline-block';
+
+  var labelEl = document.getElementById('te-grade-label');
+  if (labelEl) labelEl.textContent = '— ' + grade;
+
+  // Populate subject dropdown with this grade's fixed subject list
+  var subjSelect = document.getElementById('te-grade-subject-select');
+  if (subjSelect) {
+    var subjList = TE_GRADE_SUBJECTS[grade] || [];
+    var html = '<option value="">All Subjects for this Grade</option>';
+    for (var j = 0; j < subjList.length; j++) {
+      html += '<option value="' + escHtml(subjList[j]) + '">' + escHtml(subjList[j]) + '</option>';
+    }
+    subjSelect.innerHTML = html;
+    subjSelect.value = '';
+  }
+
+  var subjRow = document.getElementById('te-grade-subject-row');
+  if (subjRow) subjRow.style.display = 'block';
+
+  var delSubjBtn = document.getElementById('te-delete-subj-btn');
+  if (delSubjBtn) delSubjBtn.style.display = 'none';
+
+  // Clear the free-text subject filter / search to avoid double-filtering confusion
+  var teSubjFilter = document.getElementById('te-subj-filter');
+  if (teSubjFilter) teSubjFilter.value = '';
+  var teSearch = document.getElementById('te-search');
+  if (teSearch) teSearch.value = '';
+
+  renderTEExamList();
+}
+
+function teResetGradeFilter() {
+  teActiveGrade = '';
+  var grades = ['Grade 7','Grade 12','GCE'];
+  for (var i = 0; i < grades.length; i++) {
+    var btn = document.getElementById('te-grade-btn-' + grades[i]);
+    if (btn) { btn.style.background = 'var(--navy-light)'; btn.style.color = '#fff'; btn.style.borderColor = 'rgba(201,162,39,0.3)'; }
+  }
+  var resetBtn = document.getElementById('te-grade-reset-btn');
+  if (resetBtn) resetBtn.style.display = 'none';
+  var subjRow = document.getElementById('te-grade-subject-row');
+  if (subjRow) subjRow.style.display = 'none';
+  renderTEExamList();
+}
+
+function teFilterByGradeSubject() {
+  var subjSelect = document.getElementById('te-grade-subject-select');
+  var selectedSubj = subjSelect ? subjSelect.value : '';
+  var delSubjBtn = document.getElementById('te-delete-subj-btn');
+  if (delSubjBtn) delSubjBtn.style.display = selectedSubj ? 'inline-block' : 'none';
+  renderTEExamList();
+}
+
+// ── Delete ALL exams for the active Grade (across every subject) ────────────
+function teDeleteGradeAll() {
+  if (!teActiveGrade) { showToast('Select a Grade first!'); return; }
+  var bank = getBankData();
+  var subjects = Object.keys(bank);
+  var count = 0;
+  for (var i = 0; i < subjects.length; i++) {
+    var exams = bank[subjects[i]] || [];
+    count += exams.filter(function(e){ return e.settings && e.settings.grade === teActiveGrade; }).length;
+  }
+  if (count === 0) { showToast('No exams found for ' + teActiveGrade); return; }
+
+  openModal('Delete All ' + teActiveGrade + ' Exams',
+    '<p style="color:#d4e0ff;">Delete ALL <strong style="color:var(--gold);">' + count + '</strong> exam(s) across every subject for <strong style="color:var(--gold);">' + escHtml(teActiveGrade) + '</strong>?</p>' +
+    '<p style="color:#e74c3c;font-size:0.85rem;margin-top:8px;">&#9888; This cannot be undone.</p>',
+    function() {
+      var bank2 = getBankData();
+      var subjects2 = Object.keys(bank2);
+      for (var j = 0; j < subjects2.length; j++) {
+        bank2[subjects2[j]] = (bank2[subjects2[j]] || []).filter(function(e){ return !(e.settings && e.settings.grade === teActiveGrade); });
+        if (bank2[subjects2[j]].length === 0) delete bank2[subjects2[j]];
+      }
+      saveBankData(bank2);
+      closeModal();
+      showToast('Deleted all ' + teActiveGrade + ' exams (' + count + ')');
+      renderBank();
+      renderTEExamList();
+    }, 'Delete All ' + teActiveGrade
+  );
+}
+
+// ── Delete exams for one Subject within the active Grade ────────────────────
+function teDeleteSubjectInGrade() {
+  if (!teActiveGrade) { showToast('Select a Grade first!'); return; }
+  var subjSelect = document.getElementById('te-grade-subject-select');
+  var subject = subjSelect ? subjSelect.value : '';
+  if (!subject) { showToast('Select a Subject first!'); return; }
+
+  var bank = getBankData();
+  var exams = bank[subject] || [];
+  var matching = exams.filter(function(e){ return e.settings && e.settings.grade === teActiveGrade; });
+  if (matching.length === 0) { showToast('No ' + subject + ' exams found for ' + teActiveGrade); return; }
+
+  openModal('Delete ' + subject + ' — ' + teActiveGrade,
+    '<p style="color:#d4e0ff;">Delete <strong style="color:var(--gold);">' + matching.length + '</strong> exam(s) for <strong style="color:var(--gold);">' + escHtml(subject) + '</strong> (' + escHtml(teActiveGrade) + ' only)?</p>' +
+    '<p style="color:#e74c3c;font-size:0.85rem;margin-top:8px;">&#9888; This cannot be undone. Exams for other grades in this subject are kept.</p>',
+    function() {
+      var bank2 = getBankData();
+      bank2[subject] = (bank2[subject] || []).filter(function(e){ return !(e.settings && e.settings.grade === teActiveGrade); });
+      if (bank2[subject].length === 0) delete bank2[subject];
+      saveBankData(bank2);
+      closeModal();
+      showToast('Deleted ' + matching.length + ' ' + subject + ' exam(s) for ' + teActiveGrade);
+      renderBank();
+      renderTEExamList();
+    }, 'Delete'
+  );
+}
+
 // ── Load exams from bank into selector ─────────────────────
 function renderTEExamList() {
   var bank = getBankData();
   var subjects = Object.keys(bank);
   var filterSubj = (document.getElementById('te-subj-filter') || {}).value || '';
   var search     = ((document.getElementById('te-search') || {}).value || '').toLowerCase();
+  var gradeSubjSelect = document.getElementById('te-grade-subject-select');
+  var gradeSubj  = (teActiveGrade && gradeSubjSelect) ? gradeSubjSelect.value : '';
 
   // Populate subject filter dropdown
   var subjSel = document.getElementById('te-subj-filter');
@@ -3074,12 +3354,17 @@ function renderTEExamList() {
   for (var si = 0; si < subjects.length; si++) {
     var subj = subjects[si];
     if (filterSubj && subj !== filterSubj) continue;
-    var exams = bank[subj];
+    if (teActiveGrade && gradeSubj && subj !== gradeSubj) continue;
+    var examsRaw = bank[subj];
+    var exams = examsRaw;
+    if (teActiveGrade) {
+      exams = examsRaw.filter(function(e){ return e.settings && e.settings.grade === teActiveGrade; });
+    }
     var filteredExams = [];
     for (var ei = 0; ei < exams.length; ei++) {
       var t = (exams[ei].title || '').toLowerCase();
       if (!search || t.indexOf(search) !== -1 || subj.toLowerCase().indexOf(search) !== -1) {
-        filteredExams.push({ exam: exams[ei], subjIdx: si, examIdx: ei, subj: subj });
+        filteredExams.push({ exam: exams[ei], subjIdx: si, examIdx: examsRaw.indexOf(exams[ei]), subj: subj });
       }
     }
     if (filteredExams.length === 0) continue;
@@ -5416,11 +5701,58 @@ function cloudLaunchStudentExam(examData, db, loadDiv) {
     };
 
     // Save to Firestore
-    var newResultRef = db.ref('mtc_results').push();
-    result.id = newResultRef.key;
-    newResultRef.set(result)
-      .then(function(){ showOnlineResult(result, gc, ge, score, max, right, total); })
-      .catch(function(){ showOnlineResult(result, gc, ge, score, max, right, total); });
+    // AI mark short/essay before saving
+    var longQsOnline = [];
+    for (var lqoi=0; lqoi<qs.length; lqoi++) {
+      if (qs[lqoi].type !== 'mcq') longQsOnline.push(qs[lqoi]);
+    }
+    var oKey = localStorage.getItem('mtc_gemini_key') || '';
+    function finishAndSave(aScr, aMx, aMks, aFbs) {
+      result.aiScore = aScr; result.aiMax = aMx;
+      result.aiMarks = aMks; result.aiFeedback = aFbs;
+      if (aMx > 0) {
+        var tp = Math.round(((score+aScr)/(max+aMx))*100);
+        result.pct = tp; result.totalScore = score+aScr; result.totalMax = max+aMx;
+        var gx = s.grades||{d:80,m:65,c:50,p:35};
+        result.grade = tp>=(gx.d||80)?'DISTINCTION':tp>=(gx.m||65)?'MERIT':tp>=(gx.c||50)?'CREDIT':tp>=(gx.p||35)?'PASS':'FAIL';
+      }
+      var ref = db.ref('mtc_results').push();
+      result.id = ref.key;
+      ref.set(result)
+        .then(function(){ showOnlineResult(result, gc, ge, score, max, right, total); })
+        .catch(function(){ showOnlineResult(result, gc, ge, score, max, right, total); });
+    }
+    if (!longQsOnline.length || !oKey) { finishAndSave(0,0,{},{}); return; }
+    document.body.innerHTML = '<div style="min-height:100vh;background:#081236;display:flex;align-items:center;justify-content:center;font-family:Segoe UI,Arial,sans-serif;padding:20px;"><div style="text-align:center;max-width:380px;"><div style="font-size:3rem;margin-bottom:12px;">&#129302;</div><div style="font-size:1.1rem;font-weight:800;color:#c9a227;margin-bottom:8px;">AI is Marking Your Answers...</div><div style="font-size:0.85rem;color:#aab4d4;margin-bottom:16px;">Gemini AI is reviewing your short answers and essays.<br>Please wait a moment.</div><div style="height:12px;background:rgba(201,162,39,0.15);border-radius:6px;overflow:hidden;"><div id="oaip" style="height:100%;background:#c9a227;border-radius:6px;width:0%;transition:width 0.5s;"></div></div><div id="oail" style="font-size:0.82rem;color:#8899cc;margin-top:8px;">0 of ' + longQsOnline.length + ' marked</div></div></div>';
+    var oD=0,oS=0,oM=0,oMk={},oFb={};
+    for (var oqi2=0; oqi2<longQsOnline.length; oqi2++) {
+      (function(oq) {
+        oM += (oq.marks||1);
+        var oA = studentAnswers[oq.id] || '';
+        function onMark(sc5,fb5) {
+          oMk[oq.id]=sc5; oFb[oq.id]=fb5; oS+=sc5; oD++;
+          var fp=document.getElementById('oaip'),fl=document.getElementById('oail');
+          if(fp) fp.style.width=Math.round((oD/longQsOnline.length)*100)+'%';
+          if(fl) fl.textContent=oD+' of '+longQsOnline.length+' marked';
+          if(oD===longQsOnline.length) finishAndSave(oS,oM,oMk,oFb);
+        }
+        if (!oA.trim()) { onMark(0,'No answer provided.'); return; }
+        var oP = 'ECZ Zambia exam marker at Mountain Tuition Centre.\n\nQUESTION: '+oq.text+'\nMODEL ANSWER: '+(oq.answer||oq.guidance||'N/A')+'\nSTUDENT ANSWER: '+oA+'\nMAX MARKS: '+(oq.marks||1)+'\n\nReturn ONLY JSON: {"score":2,"feedback":"Comment."}\nPartial marks OK. Blank=0. score 0 to '+(oq.marks||1);
+        fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+oKey,{
+          method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({contents:[{parts:[{text:oP}]}],generationConfig:{temperature:0.2,maxOutputTokens:256}})
+        }).then(function(r){return r.json();}).then(function(d){
+          var s6=0,f6='AI unavailable.';
+          if(d.candidates&&d.candidates[0]){
+            var tx=d.candidates[0].content.parts[0].text.replace(/```json/gi,'').replace(/```/g,'').trim();
+            var si=tx.indexOf('{'),ei=tx.lastIndexOf('}');
+            if(si>=0&&ei>si){try{var rr=JSON.parse(tx.substring(si,ei+1));
+              s6=Math.min(Math.max(0,parseInt(rr.score)||0),oq.marks||1);f6=rr.feedback||'Marked.';}catch(e){}}
+          }
+          onMark(s6,f6);
+        }).catch(function(){ onMark(0,'AI offline — teacher will review.'); });
+      })(longQsOnline[oqi2]);
+    }
   }
 
   function showOnlineResult(r, gc, ge, score, max, right, total){
@@ -5438,7 +5770,9 @@ function cloudLaunchStudentExam(examData, db, loadDiv) {
       '<div style="background:rgba(0,0,0,.3);border-radius:10px;padding:12px;text-align:left;margin-bottom:14px;">' +
       '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(201,162,39,.15);font-size:.85rem;"><span style="color:#aab4d4;">Student</span><span style="color:#e8c04a;font-weight:600;">'+h(r.studentName)+'</span></div>' +
       '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(201,162,39,.15);font-size:.85rem;"><span style="color:#aab4d4;">Exam No</span><span>'+h(r.studentNum)+'</span></div>' +
-      '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(201,162,39,.15);font-size:.85rem;"><span style="color:#aab4d4;">MCQ Score</span><span>'+score+'/'+max+'</span></div>' +
+      '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(201,162,39,.15);font-size:.85rem;"><span style="color:#aab4d4;">MCQ Score</span><span>'+score+'/'+max+' (MCQ)</span></div>' +
+      (r.aiMax > 0 ? '<div style=\'display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(201,162,39,.15);font-size:.85rem;\'><span style=\'color:#aab4d4;\'>&#129302; AI Marked</span><span style=\'color:#81c784;font-weight:700;\'>'+r.aiScore+'/'+r.aiMax+' marks</span></div>' : '') +
+      '<div style=\'display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(201,162,39,.15);font-size:.85rem;\'><span style=\'color:#aab4d4;\'>Total Score</span><span style=\'color:#c9a227;font-weight:900;\'>'+(r.totalScore||score)+'/'+(r.totalMax||max)+' marks</span></div>' +
       '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(201,162,39,.15);font-size:.85rem;"><span style="color:#aab4d4;">Grade</span><span style="color:'+gc+';font-weight:800;">'+r.grade+'</span></div>' +
       '</div>' +
       '<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:8px;">' +
