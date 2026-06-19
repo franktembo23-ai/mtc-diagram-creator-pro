@@ -106,6 +106,64 @@ select option { background: #ffffff; color: #1a2744; }
 .btn-sm { padding: 5px 11px; font-size: 0.78rem; }
 .btn-xs { padding: 3px 8px; font-size: 0.74rem; }
 
+/* ========== MATH KEYBOARD ========== */
+.math-kb-btn {
+  background: rgba(201,162,39,0.15); border: 1px solid rgba(201,162,39,0.45);
+  color: var(--gold); border-radius: 7px; padding: 5px 10px; font-size: 0.78rem;
+  cursor: pointer; font-weight: 700; white-space: nowrap; transition: all 0.15s;
+}
+.math-kb-btn:hover { background: var(--gold); color: var(--navy-dark); }
+#tab-creator .math-kb-btn { color: var(--gold-dark); border-color: rgba(160,127,24,0.4); background: rgba(201,162,39,0.1); }
+#tab-creator .math-kb-btn:hover { background: var(--gold); color: var(--navy-dark); }
+#math-kb-panel-wrap {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 9000; display: none;
+}
+#math-kb-panel {
+  background: linear-gradient(135deg, var(--navy) 0%, var(--navy-mid) 100%);
+  border-top: 2px solid var(--gold); box-shadow: 0 -8px 28px rgba(0,0,0,0.55);
+  max-height: 56vh; display: flex; flex-direction: column;
+  border-radius: 16px 16px 0 0; max-width: 760px; margin: 0 auto;
+}
+#math-kb-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 11px 16px; border-bottom: 1px solid rgba(201,162,39,0.25); flex-shrink: 0;
+}
+#math-kb-header-left { display: flex; flex-direction: column; }
+#math-kb-header strong { color: var(--gold); font-size: 0.92rem; }
+#math-kb-target-label { color: #8899cc; font-size: 0.74rem; margin-top: 2px; }
+#math-kb-close {
+  background: none; border: none; color: #ccc; font-size: 1.4rem; cursor: pointer;
+  line-height: 1; padding: 2px 10px; border-radius: 6px;
+}
+#math-kb-close:hover { color: var(--navy-dark); background: var(--gold); }
+#math-kb-tabs {
+  display: flex; gap: 5px; padding: 9px 12px 0; overflow-x: auto; flex-shrink: 0;
+}
+#math-kb-tabs::-webkit-scrollbar { height: 4px; }
+.mkb-tab {
+  background: rgba(201,162,39,0.08); border: 1px solid rgba(201,162,39,0.25);
+  color: #aab4d4; padding: 7px 13px; border-radius: 9px 9px 0 0; font-size: 0.74rem;
+  cursor: pointer; white-space: nowrap; font-weight: 700; flex-shrink: 0;
+}
+.mkb-tab.active { background: var(--gold); color: var(--navy-dark); border-color: var(--gold); }
+#math-kb-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(48px, 1fr));
+  gap: 7px; padding: 14px 16px; overflow-y: auto;
+}
+.mkb-key {
+  background: rgba(8,18,54,0.65); border: 1px solid rgba(201,162,39,0.25);
+  color: #fff; border-radius: 9px; padding: 10px 4px; font-size: 1.05rem;
+  cursor: pointer; text-align: center; transition: all 0.12s; min-height: 42px;
+  display: flex; align-items: center; justify-content: center; user-select: none;
+}
+.mkb-key:hover { background: rgba(201,162,39,0.22); border-color: var(--gold); transform: translateY(-1px); }
+.mkb-key:active { transform: scale(0.9); background: var(--gold); color: var(--navy-dark); }
+.mkb-key.wide { grid-column: span 2; font-size: 0.84rem; }
+@media (max-width: 600px) {
+  #math-kb-grid { grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)); }
+  .mkb-key { font-size: 0.95rem; min-height: 38px; }
+}
+
 /* ========== GRID ========== */
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
@@ -332,61 +390,6 @@ select option { background: #ffffff; color: #1a2744; }
 #cloud-share-url { font-size: 0.79rem; padding: 7px 10px; }
 .tab-btn#tab-btn-cloud { border-bottom: 3px solid #2ecc71; }
 
-/* ========== MATH KEYBOARD ========== */
-.math-kb-wrap {
-  position: relative;
-  margin: 6px 0 10px 0;
-}
-.math-kb-toggle {
-  background: var(--navy-light);
-  color: white;
-  border: 1px solid rgba(201,162,39,0.4);
-  border-radius: 20px;
-  padding: 4px 14px;
-  font-size: 0.75rem;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  transition: 0.2s;
-}
-.math-kb-toggle:hover { background: var(--gold); color: var(--navy-dark); }
-.math-kb {
-  display: none;
-  flex-wrap: wrap;
-  gap: 4px;
-  background: #f5f7ff;
-  border: 1px solid #c5cde8;
-  border-radius: 10px;
-  padding: 8px 10px;
-  margin-top: 6px;
-  max-width: 100%;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-}
-.math-kb.open { display: flex; }
-.math-kb button {
-  background: white;
-  border: 1px solid #c5cde8;
-  border-radius: 6px;
-  padding: 6px 10px;
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: 0.15s;
-  min-width: 34px;
-  color: #0d1b4b;
-  font-family: 'Segoe UI', 'Times New Roman', serif;
-}
-.math-kb button:hover { background: var(--gold); border-color: var(--gold); color: white; }
-.math-kb .kb-cat {
-  width: 100%;
-  font-size: 0.7rem;
-  font-weight: 700;
-  color: #5566a0;
-  padding: 4px 0 2px 4px;
-  border-bottom: 1px solid #dde3f5;
-  margin-top: 4px;
-}
 </style>
 </head>
 <body>
@@ -428,6 +431,7 @@ select option { background: #ffffff; color: #1a2744; }
       <button class="btn btn-gold" onclick="addQuestion('mcq')">&#43; MCQ</button>
       <button class="btn btn-navy" onclick="addQuestion('short')">&#43; Short Answer</button>
       <button class="btn btn-navy" onclick="addQuestion('essay')">&#43; Essay</button>
+      <button class="btn btn-navy" id="math-kb-toggle-btn" onclick="toggleMathKeyboard()">&#129518; Math Keyboard</button>
       <div style="margin-left:auto; display:flex; gap:8px;">
         <button class="btn btn-navy btn-sm" onclick="clearAllQuestions()">&#128465; Clear All</button>
         <button class="btn btn-gold btn-sm" onclick="saveToBank()">&#128190; Save to Bank</button>
@@ -1129,6 +1133,21 @@ select option { background: #ffffff; color: #1a2744; }
   </div>
 </div>
 
+<!-- MATH SYMBOL KEYBOARD -->
+<div id="math-kb-panel-wrap">
+  <div id="math-kb-panel">
+    <div id="math-kb-header">
+      <div id="math-kb-header-left">
+        <strong>&#129518; Math Keyboard — All Standard &amp; Scientific Tools</strong>
+        <span id="math-kb-target-label">Click into a question, option, or answer field, then tap a symbol</span>
+      </div>
+      <button id="math-kb-close" onclick="closeMathKeyboard()" title="Close">&#10005;</button>
+    </div>
+    <div id="math-kb-tabs"></div>
+    <div id="math-kb-grid"></div>
+  </div>
+</div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script>
 // ============================================================
@@ -1152,6 +1171,180 @@ var examState = {
 };
 
 var qCounter = 0;
+
+// ============================================================
+// MATH SYMBOL KEYBOARD — All Standard & Scientific Tools
+// ============================================================
+var MATH_KB_CATEGORIES = [
+  {
+    name: 'Basic',
+    keys: ['+','−','×','÷','=','≠','±','∓','(',')','[',']','{','}','%','.',',', ':']
+  },
+  {
+    name: 'Powers/Roots',
+    keys: ['x²','x³','xⁿ','x⁻¹','√','∛','∜','^','x₁','x₂','xₙ','⁰','¹','²','³','⁴','⁵','⁶','⁷','⁸','⁹']
+  },
+  {
+    name: 'Fractions',
+    keys: ['½','⅓','⅔','¼','¾','⅕','⅖','⅗','⅘','⅙','⅚','⅛','⅜','⅝','⅞','/','∕']
+  },
+  {
+    name: 'Compare',
+    keys: ['<','>','≤','≥','≈','≡','≅','∝','∞','≪','≫','≠','~']
+  },
+  {
+    name: 'Algebra',
+    keys: ['Δ','x','y','z','a','b','c','n','±√','x=','f(x)','f⁻¹(x)','|x|','%','‰']
+  },
+  {
+    name: 'Greek',
+    keys: ['α','β','γ','δ','ε','ζ','η','θ','ι','κ','λ','μ','ν','ξ','π','ρ','σ','τ','φ','χ','ψ','ω','Δ','Σ','Π','Ω','Φ','Θ','Λ','Γ']
+  },
+  {
+    name: 'Trig',
+    keys: ['sin','cos','tan','sin⁻¹','cos⁻¹','tan⁻¹','sec','csc','cot','sinh','cosh','tanh','θ','°','′','″']
+  },
+  {
+    name: 'Calculus',
+    keys: ['∫','∬','∭','∮','d/dx','dy/dx','∂','∂/∂x','∇','lim','Σ','Π','→∞','x→0','Δx','δ']
+  },
+  {
+    name: 'Sets/Logic',
+    keys: ['∈','∉','⊂','⊆','⊃','⊇','∪','∩','∅','∀','∃','¬','∧','∨','⇒','⇔','⟹','⟺']
+  },
+  {
+    name: 'Geometry',
+    keys: ['°','′','″','∠','△','□','○','⊥','∥','≅','∼','π','r²','πr²','πd','πr²h']
+  },
+  {
+    name: 'Stats',
+    keys: ['x̄','σ','σ²','μ','Σx','Σx²','n','p̂','χ²','∝','≈','±','%']
+  },
+  {
+    name: 'Arrows/Misc',
+    keys: ['→','←','↔','↑','↓','⇌','⇋','…','∴','∵','∎','#','&','@','′','″','‴']
+  }
+];
+
+var mathKbActiveTab = 0;
+var mathKbTarget = null;  // { qid, fieldType, optIdx } — used by inline math buttons
+
+function renderMathKeyboard() {
+  var tabsEl = document.getElementById('math-kb-tabs');
+  var gridEl = document.getElementById('math-kb-grid');
+  if (!tabsEl || !gridEl) return;
+
+  var tabsHtml = '';
+  for (var i = 0; i < MATH_KB_CATEGORIES.length; i++) {
+    var activeClass = (i === mathKbActiveTab) ? ' active' : '';
+    tabsHtml += '<button type="button" class="mkb-tab' + activeClass + '" onmousedown="event.preventDefault()" onclick="mathKbSwitchTab(' + i + ')">' + MATH_KB_CATEGORIES[i].name + '</button>';
+  }
+  tabsEl.innerHTML = tabsHtml;
+
+  var keys = MATH_KB_CATEGORIES[mathKbActiveTab].keys;
+  var gridHtml = '';
+  for (var k = 0; k < keys.length; k++) {
+    var wideClass = keys[k].length > 2 ? ' wide' : '';
+    gridHtml += '<div class="mkb-key' + wideClass + '" onmousedown="event.preventDefault()" onclick="insertMathSymbol(\'' + keys[k].replace(/'/g, "\\'") + '\')">' + keys[k] + '</div>';
+  }
+  gridEl.innerHTML = gridHtml;
+}
+
+function mathKbSwitchTab(idx) {
+  mathKbActiveTab = idx;
+  renderMathKeyboard();
+}
+
+function toggleMathKeyboard() {
+  var wrap = document.getElementById('math-kb-panel-wrap');
+  if (!wrap) return;
+  if (wrap.style.display === 'block') {
+    closeMathKeyboard();
+  } else {
+    openMathKeyboardGeneral();
+  }
+}
+
+function openMathKeyboardGeneral() {
+  var wrap = document.getElementById('math-kb-panel-wrap');
+  if (!wrap) return;
+  wrap.style.display = 'block';
+  renderMathKeyboard();
+  var lbl = document.getElementById('math-kb-target-label');
+  if (lbl) lbl.textContent = 'Click into a question, option, or answer field, then tap a symbol';
+}
+
+// Called by the inline 🧮 button next to a specific field — focuses that field then opens keyboard
+function openMathKeyboardFor(qid, fieldType, optIdx) {
+  var elId = '';
+  var fieldLabel = '';
+  if (fieldType === 'text')     { elId = 'qtext-'     + qid; fieldLabel = 'Question Text'; }
+  else if (fieldType === 'answer')   { elId = 'qanswer-'   + qid; fieldLabel = 'Model Answer'; }
+  else if (fieldType === 'guidance') { elId = 'qguidance-' + qid; fieldLabel = 'Mark Scheme / Guidance'; }
+  else if (fieldType === 'opt')      { elId = 'opt-inp-'   + qid + '-' + optIdx; fieldLabel = 'Option ' + String.fromCharCode(65 + optIdx); }
+
+  var el = document.getElementById(elId);
+  if (el) {
+    el.focus();
+    // Place cursor at end if nothing selected yet
+    var len = el.value.length;
+    if (el.selectionStart === el.selectionEnd && el.selectionStart === 0 && len > 0) {
+      el.setSelectionRange(len, len);
+    }
+  }
+
+  var wrap = document.getElementById('math-kb-panel-wrap');
+  if (wrap) wrap.style.display = 'block';
+  renderMathKeyboard();
+
+  var lbl = document.getElementById('math-kb-target-label');
+  if (lbl) lbl.textContent = 'Inserting into: ' + fieldLabel + ' (Q' + qid + ')';
+}
+
+function closeMathKeyboard() {
+  var wrap = document.getElementById('math-kb-panel-wrap');
+  if (wrap) wrap.style.display = 'none';
+}
+
+// Inserts a symbol at the cursor position of whichever field is currently focused.
+// Keys use onmousedown=preventDefault so focus NEVER leaves the text field — this means
+// document.activeElement is reliably still the field the user was typing in.
+function insertMathSymbol(symbol) {
+  var el = document.activeElement;
+  var isValidField = el && (el.tagName === 'TEXTAREA' ||
+    (el.tagName === 'INPUT' && (el.type === 'text' || el.type === 'number')));
+
+  // Restrict insertion to Exam Creator question fields only (ids starting with our known prefixes)
+  if (isValidField && el.id) {
+    isValidField = (el.id.indexOf('qtext-') === 0 || el.id.indexOf('qanswer-') === 0 ||
+                    el.id.indexOf('qguidance-') === 0 || el.id.indexOf('opt-inp-') === 0);
+  } else {
+    isValidField = false;
+  }
+
+  if (!isValidField) {
+    showToast('Click inside a question, option, or answer field first — then tap a symbol.');
+    return;
+  }
+
+  var start = (el.selectionStart != null) ? el.selectionStart : el.value.length;
+  var end   = (el.selectionEnd   != null) ? el.selectionEnd   : el.value.length;
+  var before = el.value.substring(0, start);
+  var after  = el.value.substring(end);
+  el.value = before + symbol + after;
+
+  var newPos = start + symbol.length;
+  try { el.setSelectionRange(newPos, newPos); } catch(e) {}
+
+  // Fire a real 'input' event so the existing oninput handlers
+  // (updateQField / updateOptionText) sync examState automatically — no full re-render needed.
+  var evt;
+  try { evt = new Event('input', { bubbles: true }); }
+  catch(e) { evt = document.createEvent('Event'); evt.initEvent('input', true, true); }
+  el.dispatchEvent(evt);
+
+  el.focus();
+}
 
 // ============================================================
 // TABS
@@ -1269,31 +1462,6 @@ function renderQuestions() {
       }
     }
   }
-  // Attach math keyboard toggles
-  document.querySelectorAll('.math-kb-toggle').forEach(function(btn) {
-    btn.onclick = function(e) {
-      e.stopPropagation();
-      var kb = this.nextElementSibling;
-      if (kb && kb.classList) kb.classList.toggle('open');
-    };
-  });
-  document.querySelectorAll('.math-kb button').forEach(function(btn) {
-    btn.onclick = function(e) {
-      e.stopPropagation();
-      var input = this.closest('.math-kb-wrap').previousElementSibling;
-      if (input && input.tagName === 'TEXTAREA') {
-        var val = this.textContent;
-        var start = input.selectionStart;
-        var end = input.selectionEnd;
-        var before = input.value.substring(0, start);
-        var after = input.value.substring(end);
-        input.value = before + val + after;
-        input.focus();
-        input.selectionStart = input.selectionEnd = start + val.length;
-        input.dispatchEvent(new Event('input'));
-      }
-    };
-  });
 }
 
 function buildQuestionHTML(q, idx) {
@@ -1313,11 +1481,13 @@ function buildQuestionHTML(q, idx) {
   html += '<input type="number" style="width:80px;" value="' + q.marks + '" min="1" onchange="updateQField(' + qid + ',&quot;marks&quot;,this.value)">';
   html += '</div>';
 
-  // Question text + math keyboard
+  // Question text
   html += '<div style="margin-bottom:10px;">';
-  html += '<label>Question Text</label>';
-  html += '<textarea placeholder="Type your question here... (Ctrl+V to paste image)" oninput="updateQField(' + qid + ',&quot;text&quot;,this.value)" data-paste-qid="' + qid + '">' + escHtml(q.text) + '</textarea>';
-  html += buildMathKeyboard();
+  html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">';
+  html += '<label style="margin:0;">Question Text</label>';
+  html += '<button type="button" class="math-kb-btn" onclick="openMathKeyboardFor(' + qid + ',&quot;text&quot;,null)">&#129518; Math</button>';
+  html += '</div>';
+  html += '<textarea id="qtext-' + qid + '" placeholder="Type your question here... (Ctrl+V to paste image)" oninput="updateQField(' + qid + ',&quot;text&quot;,this.value)" data-paste-qid="' + qid + '">' + escHtml(q.text) + '</textarea>';
   html += '</div>';
 
   // Question image
@@ -1348,12 +1518,14 @@ function buildQuestionHTML(q, idx) {
       html += '<div class="mcq-option" style="position:relative;">';
       html += '<div class="option-label">' + opt.label + '</div>';
       html += '<div style="flex:1;">';
-      html += '<input type="text" id="opt-inp-' + qid + '-' + j + '" placeholder="Option ' + opt.label + ' text... (Ctrl+V to paste image)" value="' + escHtml(opt.text) + '" oninput="updateOptionText(' + qid + ',' + j + ',this.value)" data-paste-qid="' + qid + '" data-paste-optidx="' + j + '">';
-      html += buildMathKeyboard();
+      html += '<div style="display:flex;gap:6px;align-items:stretch;">';
+      html += '<input type="text" id="opt-inp-' + qid + '-' + j + '" placeholder="Option ' + opt.label + ' text... (Ctrl+V to paste image)" value="' + escHtml(opt.text) + '" oninput="updateOptionText(' + qid + ',' + j + ',this.value)" data-paste-qid="' + qid + '" data-paste-optidx="' + j + '" style="flex:1;">';
+      html += '<button type="button" class="math-kb-btn" style="flex-shrink:0;" onclick="openMathKeyboardFor(' + qid + ',&quot;opt&quot;,' + j + ')">&#129518;</button>';
+      html += '</div>';
       // Option image
       html += '<div style="margin-top:4px;">';
       if (opt.image) {
-        html += '<img id="opt-img-prev-' + qid + '-' + j + '" class="option-img-preview" src="' + opt.image + '" onclick="viewFullImage(this.src)">';
+        html += '<img id="opt-img-prev-' + qid + '-' + j + '" class="option-img-preview" src="' + opt.image + '" alt="option img" onclick="viewFullImage(this.src)">';
         html += '<div style="display:flex; gap:6px; margin-top:4px;">';
         html += '<button class="btn btn-navy btn-xs" onclick="triggerOptImg(' + qid + ',' + j + ')">&#8635; Replace</button>';
         html += '<button class="btn btn-danger btn-xs" onclick="removeOptImage(' + qid + ',' + j + ')">&#128465;</button>';
@@ -1386,18 +1558,22 @@ function buildQuestionHTML(q, idx) {
   // Short Answer
   if (q.type === 'short') {
     html += '<div style="margin-bottom:6px;">';
-    html += '<label>Model Answer (for teacher copy)</label>';
-    html += '<textarea placeholder="Enter the expected answer... (Ctrl+V to paste image into question)" oninput="updateQField(' + qid + ',&quot;answer&quot;,this.value)" data-paste-qid="' + qid + '">' + escHtml(q.answer||'') + '</textarea>';
-    html += buildMathKeyboard();
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">';
+    html += '<label style="margin:0;">Model Answer (for teacher copy)</label>';
+    html += '<button type="button" class="math-kb-btn" onclick="openMathKeyboardFor(' + qid + ',&quot;answer&quot;,null)">&#129518; Math</button>';
+    html += '</div>';
+    html += '<textarea id="qanswer-' + qid + '" placeholder="Enter the expected answer... (Ctrl+V to paste image into question)" oninput="updateQField(' + qid + ',&quot;answer&quot;,this.value)" data-paste-qid="' + qid + '">' + escHtml(q.answer||'') + '</textarea>';
     html += '</div>';
   }
 
   // Essay
   if (q.type === 'essay') {
     html += '<div style="margin-bottom:6px;">';
-    html += '<label>Mark Scheme / Guidance (for teacher copy)</label>';
-    html += '<textarea placeholder="List marking points... (Ctrl+V to paste image into question)" oninput="updateQField(' + qid + ',&quot;guidance&quot;,this.value)" data-paste-qid="' + qid + '">' + escHtml(q.guidance||'') + '</textarea>';
-    html += buildMathKeyboard();
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">';
+    html += '<label style="margin:0;">Mark Scheme / Guidance (for teacher copy)</label>';
+    html += '<button type="button" class="math-kb-btn" onclick="openMathKeyboardFor(' + qid + ',&quot;guidance&quot;,null)">&#129518; Math</button>';
+    html += '</div>';
+    html += '<textarea id="qguidance-' + qid + '" placeholder="List marking points... (Ctrl+V to paste image into question)" oninput="updateQField(' + qid + ',&quot;guidance&quot;,this.value)" data-paste-qid="' + qid + '">' + escHtml(q.guidance||'') + '</textarea>';
     html += '</div>';
   }
 
@@ -1411,28 +1587,6 @@ function buildQuestionHTML(q, idx) {
   html += '</div>';
   return html;
 }
-
-function buildMathKeyboard() {
-  var groups = [
-    { cat: 'Operators', symbols: ['+', '−', '×', '÷', '=', '≠', '±', '√', '∛', '∞'] },
-    { cat: 'Fractions', symbols: ['¼', '½', '¾', '⅓', '⅔', '⅕', '⅖', '⅗', '⅘', '⅙', '⅚', '⅛', '⅜', '⅝', '⅞'] },
-    { cat: 'Superscripts', symbols: ['²', '³', '⁴', '⁵', '⁶', '⁷', '⁸', '⁹', '⁰', 'ⁿ'] },
-    { cat: 'Subscripts', symbols: ['₁', '₂', '₃', '₄', '₅', '₆', '₇', '₈', '₉', '₀'] },
-    { cat: 'Greek', symbols: ['α', 'β', 'γ', 'δ', 'ε', 'ζ', 'η', 'θ', 'ι', 'κ', 'λ', 'μ', 'ν', 'ξ', 'ο', 'π', 'ρ', 'σ', 'τ', 'υ', 'φ', 'χ', 'ψ', 'ω'] },
-    { cat: 'Logic & Sets', symbols: ['∈', '∉', '⊂', '⊃', '∩', '∪', '∀', '∃', '¬', '∧', '∨', '⇒', '⇔'] },
-    { cat: 'Geometry', symbols: ['∠', '⊥', '∥', '△', '□', '⊙', '°', '′', '″', 'π'] }
-  ];
-  var html = '<div class="math-kb-wrap"><button type="button" class="math-kb-toggle">&#9001;/&#9002; Math</button><div class="math-kb">';
-  groups.forEach(function(g) {
-    html += '<span class="kb-cat">' + g.cat + '</span>';
-    g.symbols.forEach(function(sym) {
-      html += '<button type="button">' + sym + '</button>';
-    });
-  });
-  html += '</div></div>';
-  return html;
-}
-
 function escHtml(str) {
   if (!str) return '';
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
