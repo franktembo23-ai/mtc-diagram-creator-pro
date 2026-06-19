@@ -4197,7 +4197,7 @@ function renderPerfRecords() {
     html += '<td style="padding:7px 10px;text-align:center;font-weight:800;color:var(--gold);">' + r.pct + '%</td>';
     html += '<td style="padding:7px 10px;text-align:center;font-weight:800;color:' + gc + ';">' + r.grade + '</td>';
     html += '<td style="padding:7px 10px;color:#8899cc;font-size:0.76rem;">' + escHtml(r.submittedAt ? new Date(r.submittedAt).toLocaleString() : (r.time||'')) + '</td>';
-    html += '<td style="padding:7px 10px;text-align:center;"><button class="btn btn-danger btn-xs" data-cloud-del="' + (r.id||'') + '" title="Delete">&#128465;</button></td>';
+    html += '<td style="padding:7px 10px;text-align:center;"><button class="btn btn-danger btn-xs" data-perf-del="' + (r.id||'') + '" title="Delete">&#128465;</button></td>';
     html += '</tr>';
   }
   html += '</tbody></table>';
@@ -5561,6 +5561,7 @@ function renderLiveResults() {
     html += '<td style="padding:6px 10px;text-align:center;font-weight:800;color:var(--gold);">' + (r.pct||0) + '%</td>';
     html += '<td style="padding:6px 10px;text-align:center;font-weight:800;color:' + gc + ';">' + (r.grade||'-') + '</td>';
     html += '<td style="padding:6px 10px;color:#8899cc;font-size:0.76rem;">' + escHtml(r.submittedAt ? new Date(r.submittedAt).toLocaleString() : '') + '</td>';
+    html += '<td style="padding:6px 10px;text-align:center;"><button class="btn btn-danger btn-xs" data-cloud-del="' + (r.id||'') + '" title="Delete">&#128465;</button></td>';
     html += '</tr>';
   }
   html += '</tbody></table>';
