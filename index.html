@@ -1362,7 +1362,8 @@ function switchTab(name) {
   if (name === 'preview') generatePreview();
   if (name === 'publish')  renderPublishedList();
   if (name === 'takeexam') { renderTEExamList(); renderPerfRecords(); }
-  if (name === 'cloud') { liveLoadPublishedExams(); liveRefresh(); }
+  if (name === 'cloud') { liveLoadPublishedExams(); liveRefresh();
+    initBankSync(); }
 }
 
 // ============================================================
@@ -1862,6 +1863,17 @@ function saveBankData(bank) {
   if (errors.length > 0) {
     showToast('Saved without images (storage full): ' + errors.join(', '));
   }
+
+  // ── MTC REAL FIREBASE SYNC ──
+  try {
+    if (typeof cloudDB !== 'undefined' && cloudDB && !window._mtcBankSyncing) {
+      window._mtcBankSyncing = true;
+      cloudDB.ref('sharedExamBank/v1').set(bank).then(function(){
+        setTimeout(function(){ window._mtcBankSyncing = false; }, 500);
+      }).catch(function(){ window._mtcBankSyncing = false; });
+    }
+  } catch(e) {}
+
 }
 
 function saveToBank() {
@@ -5272,6 +5284,28 @@ function cloudConnect(cfg) {
   } catch(e) {
     cloudSetStatus(false, 'Connection error: ' + e.message);
   }
+}
+
+
+function initBankSync(){
+  if(typeof cloudDB === 'undefined' || !cloudDB) return;
+  try{
+    cloudDB.ref('sharedExamBank/v1').on('value', function(snap){
+      if(window._mtcBankSyncing) return;
+      var remoteBank = snap.val();
+      if(!remoteBank) return;
+      try{
+        var localBank = getBankData();
+        if(JSON.stringify(remoteBank) !== JSON.stringify(localBank)){
+          window._mtcBankSyncing = true;
+          saveBankData(remoteBank);
+          if(typeof renderBank === 'function') renderBank();
+          if(typeof showToast === 'function') showToast('Exam Bank synced from cloud ✓');
+          setTimeout(function(){ window._mtcBankSyncing = false; }, 1000);
+        }
+      }catch(e){}
+    });
+  }catch(e){}
 }
 
 function cloudTestConnection() {
